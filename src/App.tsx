@@ -127,7 +127,7 @@ function App() {
   useEffect(() => {
     const updateKeys = selectedCols.map((col) => {
       return data.map((data) => {
-        return { [col?.mapped]: data[col?.current] };
+        return { [col?.current]: data[col?.mapped] };
       });
     });
     if (updateKeys.length) setModifiedData(mergeArraysOfObjects(...updateKeys));
@@ -155,17 +155,16 @@ function App() {
                 className="border text-sm"
                 name="column-mapping"
                 id="column-mapping"
+                onChange={(e) => {
+                  setSelectedCols((prev) => [
+                    ...prev,
+                    { current: opt, mapped: e.target.value },
+                  ]);
+                }}
               >
                 <option value="select">select</option>
                 {table.getAllLeafColumns().map((column) => {
-                  return (
-                    <option onChange={(e) => {
-                      console.log("Column");
-                      
-                    }} value={column.id}>
-                      {column.id}
-                    </option>
-                  );
+                  return <option value={column.id}>{column.id}</option>;
                 })}
               </select>
             );

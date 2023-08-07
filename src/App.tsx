@@ -109,20 +109,31 @@ function App() {
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
   });
-  console.log(selectedCols, "selected");
+
+  function mergeArraysOfObjects(...arrays) {
+    const checkLength = arrays[0].length;
+    if (!arrays.every((arr) => arr.length === checkLength)) {
+      throw new Error("Arrays must have the same length.");
+    }
+
+    return arrays.reduce((mergedArray, currentArray) => {
+      return mergedArray.map((item, index) => ({
+        ...item,
+        ...currentArray[index],
+      }));
+    });
+  }
+
   useEffect(() => {
     const updateKeys = selectedCols.map((col) => {
       return data.map((data) => {
-        const newObject = {};
-        delete Object.assign(newObject, data, {
-          [col.mapped]: data[col.current],
-        })[col.current];
-        return newObject;
+        return { [col?.mapped]: data[col?.current] };
       });
     });
-
-    setModifiedData(updateKeys);
+    if (updateKeys.length) setModifiedData(mergeArraysOfObjects(...updateKeys));
   }, [selectedCols]);
+
+  console.log(selectedCols);
 
   if (data.length === 0) {
     return (
@@ -138,7 +149,28 @@ function App() {
       <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
       <div className="p-2">
         <div className="flex flex-col gap-3 mt-4">
-          {table.getAllLeafColumns().map((column) => {
+          {options.map((opt) => {
+            return (
+              <select
+                className="border text-sm"
+                name="column-mapping"
+                id="column-mapping"
+              >
+                <option value="select">select</option>
+                {table.getAllLeafColumns().map((column) => {
+                  return (
+                    <option onChange={(e) => {
+                      console.log("Column");
+                      
+                    }} value={column.id}>
+                      {column.id}
+                    </option>
+                  );
+                })}
+              </select>
+            );
+          })}
+          {/* {table.getAllLeafColumns().map((column) => {
             return (
               <div key={column.id} className="px-1">
                 <label>
@@ -175,7 +207,7 @@ function App() {
                 </div>
               </div>
             );
-          })}
+          })} */}
         </div>
         <table className="border-2 mt-4">
           <thead className="border-2">

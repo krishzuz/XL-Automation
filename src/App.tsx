@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
-import _, { first } from "lodash";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import _, { cloneDeep, first } from "lodash";
 import {
   ColumnOrderState,
   createColumnHelper,
@@ -114,7 +114,7 @@ function App() {
     return [
       {
         id: "column",
-        // header: () => <span>{header}</span>,
+        header: () => <span>From Xl</span>,
         columns: records.map((columnName: any) => {
           return columnHelper.accessor(columnName, {
             cell: (info) => info.getValue(),
@@ -156,10 +156,8 @@ function App() {
 
     return t;
   };
-  // generateDynamicColumnsGrouping(selectedCols);
   const columns = generateDynamicColumns(getHeader);
   const columns2 = generateDynamicColumnsGrouping(selectedCols);
-  // const columns2 = generateDynamicColumns(options);
 
   const table = useReactTable({
     data,
@@ -199,9 +197,12 @@ function App() {
     });
   }
 
-  const handleSelectedValue = (e, opt) => {
+  const handleSelectedValue = (
+    e: ChangeEvent<HTMLSelectElement>,
+    opt: string
+  ) => {
     setSelectedCols((prev) => {
-      const existingObjectArray = prev.findIndex((v) => v.current === opt);
+      const existingObjectArray = prev.findIndex((v: any) => v.current === opt);
       const updatedDropdownValues = [...prev];
       if (existingObjectArray !== -1) {
         updatedDropdownValues[existingObjectArray] = {
@@ -224,6 +225,10 @@ function App() {
     if (updateKeys.length) setModifiedData(mergeArraysOfObjects(...updateKeys));
   }, [selectedCols]);
 
+  // useEffect(() => {
+  //   if (randomModification.length) setModifiedData(randomModification);
+  // }, [click]);
+
   if (data.length === 0) {
     return (
       <>
@@ -241,20 +246,40 @@ function App() {
         <div className="flex flex-col gap-3 mt-4">
           {options.map((opt) => {
             return (
-              <label htmlFor="">
-                {opt} :{" "}
-                <select
-                  className="border text-sm"
-                  name="column-mapping"
-                  id="column-mapping"
-                  onChange={(e) => handleSelectedValue(e, opt)}
-                >
-                  <option value="select">select</option>
-                  {table.getAllLeafColumns().map((column) => {
-                    return <option value={column.id}>{column.id}</option>;
-                  })}
-                </select>
-              </label>
+              <>
+                {opt === "payment type" && (
+                  <label htmlFor="check" className="flex items-center gap-3">
+                    match with payment options :
+                    <input
+                      type="checkbox"
+                      name="check"
+                      id="check"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          handleSelectedValue(
+                            { target: { value: "Amount" } },
+                            opt
+                          );
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+                <label htmlFor="">
+                  {opt} :{" "}
+                  <select
+                    className="border text-sm"
+                    name="column-mapping"
+                    id="column-mapping"
+                    onChange={(e) => handleSelectedValue(e, opt)}
+                  >
+                    <option value="select">select</option>
+                    {table.getAllLeafColumns().map((column) => {
+                      return <option value={column.id}>{column.id}</option>;
+                    })}
+                  </select>
+                </label>
+              </>
             );
           })}
         </div>
@@ -292,51 +317,117 @@ function App() {
           </tbody>
         </table>
         <div className="h-4" />
-
-        <div>
-          <table className="border-2 mt-4">
-            <thead className="border-2">
-              {table2.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      className="border-2 px-2 text-left"
-                      key={header.id}
-                      colSpan={header.colSpan}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table2.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td className="border-2 px-2" key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <EditTable randomModification={modifiedData} />
+        <FinalTable table2={table2} />
       </div>
     </DndProvider>
   );
 }
 
 export default App;
+
+const EditTable = ({ randomModification }) => {
+  const [state, setState] = useState([]);
+  // const clonerandom = cloneDeep(randomModification);
+
+  // const initialArray = [{ name: "kishore" }, { name: "sai" }];
+  const [array, setArray] = useState(randomModification);
+  useEffect(() => {
+    setArray(randomModification);
+  }, [randomModification]);
+  const memoizedNames = useMemo(
+    () => array.map((item) => item["payment type"]),
+    [array]
+  );
+
+  console.log({ memoizedNames });
+
+  useEffect(() => {
+    console.log("Names in array changed:", memoizedNames);
+    // Perform your desired side effects here
+  }, [memoizedNames]);
+
+  return (
+    <div>
+      <p className="px-1">Stone reference mapping</p>
+      <table className="border-2 my-4">
+        <tr>
+          <th className="border-2 p-2">Payment Type</th>
+          <th className="border-2 p-2">Payment Type - Stone</th>
+        </tr>
+        {state.map((e, index) => {
+          return (
+            <tr>
+              <td className="border-2 p-1">{e["payment type"]}</td>
+              <td className="border-2 p-1">
+                <select
+                  className="border text-sm"
+                  name="column-mapping"
+                  id="column-mapping"
+                  onChange={(el) => {
+                    setState((prev) => {
+                      return prev.map((e) => {
+                        return {
+                          ["payment type"]: el.target.value,
+                        };
+                      });
+                    });
+                  }}
+                >
+                  <option value="select">select</option>
+                  <option value="val 1">val 1</option>
+                  <option value="val 2">val 2</option>
+                  <option value="val 3">val 3</option>
+                </select>
+              </td>
+            </tr>
+          );
+        })}
+      </table>
+    </div>
+  );
+};
+
+const FinalTable = ({ table2 }) => {
+  return (
+    <div>
+      <p className="px-1">Final table structure</p>
+      <table className="border-2 mt-4">
+        <thead className="border-2">
+          {table2.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  className="border-2 px-2 text-left"
+                  key={header.id}
+                  colSpan={header.colSpan}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table2.getRowModel().rows.map((row) => (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <td className="border-2 px-2" key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 //   (e) => {
 //   setCurrentValue(opt);

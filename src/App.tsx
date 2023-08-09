@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import _ from "lodash";
+import _, { first } from "lodash";
 import {
   ColumnOrderState,
   createColumnHelper,
@@ -9,6 +9,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import * as XLSX from "xlsx";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+
 type Person = {
   firstName: string;
   lastName: string;
@@ -18,14 +21,74 @@ type Person = {
   progress: number;
 };
 
-const options = ["account number", "currency", "name", "payment type"];
+// const reorderColumn = (
+//   draggedColumnId: string,
+//   targetColumnId: string,
+//   columnOrder: string[]
+// ): ColumnOrderState => {
+//   columnOrder.splice(
+//     columnOrder.indexOf(targetColumnId),
+//     0,
+//     columnOrder.splice(columnOrder.indexOf(draggedColumnId), 1)[0] as string
+//   );
+//   return [...columnOrder];
+// };
+// const DraggableColumnHeader: FC<{
+//   header: Header<Person, unknown>;
+//   table: Table<Person>;
+// }> = ({ header, table }) => {
+//   const { getState, setColumnOrder } = table;
+//   const { columnOrder } = getState();
+//   const { column } = header;
+
+//   const [, dropRef] = useDrop({
+//     accept: "column",
+//     drop: (draggedColumn: Column<Person>) => {
+//       const newColumnOrder = reorderColumn(
+//         draggedColumn.id,
+//         column.id,
+//         columnOrder
+//       );
+//       setColumnOrder(newColumnOrder);
+//     },
+//   });
+
+//   const [{ isDragging }, dragRef, previewRef] = useDrag({
+//     collect: (monitor) => ({
+//       isDragging: monitor.isDragging(),
+//     }),
+//     item: () => column,
+//     type: "column",
+//   });
+
+//   return (
+//     <th
+//       ref={dropRef}
+//       colSpan={header.colSpan}
+//       style={{ opacity: isDragging ? 0.5 : 1 }}
+//     >
+//       <div ref={previewRef}>
+//         {header.isPlaceholder
+//           ? null
+//           : flexRender(header.column.columnDef.header, header.getContext())}
+//         <button ref={dragRef}>🟰</button>
+//       </div>
+//     </th>
+//   );
+// };
+const options = [
+  "account number",
+  "currency",
+  "name",
+  "payment type",
+  "debit",
+  "credit",
+];
 
 function App() {
   const [data, setData] = useState([]);
   const [modifiedData, setModifiedData] = useState([]);
   const [selectedCols, setSelectedCols] = useState([]);
-  const [currentValue, setCurrentValue] = useState("");
-  // console.log(selectedCols);
 
   const columnHelper = createColumnHelper<Person>();
 
@@ -47,14 +110,12 @@ function App() {
     };
   };
 
-  const generateDynamicColumns = (records: any, header: string) => {
+  const generateDynamicColumns = (records: any) => {
     return [
       {
         id: "column",
         // header: () => <span>{header}</span>,
         columns: records.map((columnName: any) => {
-          console.log(columnName, "column");
-
           return columnHelper.accessor(columnName, {
             cell: (info) => info.getValue(),
             header: () => <span>{columnName}</span>,
@@ -67,7 +128,6 @@ function App() {
 
   const generateDynamicColumnsGrouping = (records: any) => {
     const grouped = _.groupBy(records, "mapped");
-    console.log({ records, grouped });
 
     const t = Object.keys(grouped).map((e) => {
       if (grouped[e].length > 1) {
@@ -84,22 +144,20 @@ function App() {
       } else {
         return columnHelper.accessor(
           (row: any) => {
-            console.log(row, "row" , e);
-            return row["account number"];
+            return row[first(grouped[e]).current];
           },
           {
-            header: e,
+            header: first(grouped[e]).current,
             cell: (info) => info.getValue(),
           }
         );
       }
     });
-    console.log(t);
 
     return t;
   };
   // generateDynamicColumnsGrouping(selectedCols);
-  const columns = generateDynamicColumns(getHeader, "From Xl");
+  const columns = generateDynamicColumns(getHeader);
   const columns2 = generateDynamicColumnsGrouping(selectedCols);
   // const columns2 = generateDynamicColumns(options);
 
@@ -176,7 +234,7 @@ function App() {
   }
 
   return (
-    <div>
+    <DndProvider backend={HTML5Backend}>
       <div className="text-base font-normal">Exploring Tanstack table</div>
       <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
       <div className="p-2">
@@ -274,7 +332,7 @@ function App() {
           </table>
         </div>
       </div>
-    </div>
+    </DndProvider>
   );
 }
 

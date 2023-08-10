@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import _, { cloneDeep, first } from "lodash";
+import { first, groupBy, merge } from "lodash";
 import {
   ColumnOrderState,
   createColumnHelper,
@@ -9,8 +9,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import * as XLSX from "xlsx";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { MyListbox } from "./Components/List/List";
 
 type Person = {
   firstName: string;
@@ -86,10 +85,11 @@ const options = [
 ];
 
 function App() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [modifiedData, setModifiedData] = useState([]);
   const [selectedCols, setSelectedCols] = useState([]);
-
+  const [getSpecific, setGetSpecific] = useState("");
+  const [seperatedData, setSeperatedData] = useState<any[]>([]);
   const columnHelper = createColumnHelper<Person>();
 
   const [columnVisibility, setColumnVisibility] = useState({});
@@ -100,7 +100,7 @@ function App() {
   const handleFileUpload = (e: any) => {
     const reader = new FileReader();
     reader.readAsBinaryString(e.target.files[0]);
-    reader.onload = (e) => {
+    reader.onload = (e: any) => {
       const data = e.target.result;
       const workbook = XLSX.read(data, { type: "binary" });
       const sheetName = workbook.SheetNames[0];
@@ -127,7 +127,7 @@ function App() {
   };
 
   const generateDynamicColumnsGrouping = (records: any) => {
-    const grouped = _.groupBy(records, "mapped");
+    const grouped = groupBy(records, "mapped");
 
     const t = Object.keys(grouped).map((e) => {
       if (grouped[e].length > 1) {
@@ -159,6 +159,13 @@ function App() {
   const columns = generateDynamicColumns(getHeader);
   const columns2 = generateDynamicColumnsGrouping(selectedCols);
 
+  const updateEditPayment = (mfData: any[]) => {
+    const modifiedData2 = mfData.map((item: any, index: number) => {
+      return merge(modifiedData[index], item);
+    });
+    setModifiedData(modifiedData2);
+  };
+
   const table = useReactTable({
     data,
     columns,
@@ -189,7 +196,7 @@ function App() {
       throw new Error("Arrays must have the same length.");
     }
 
-    return arrays.reduce((mergedArray, currentArray) => {
+    return arrays.reduce((mergedArray: any, currentArray: any) => {
       return mergedArray.map((item: any, index: string | number) => ({
         ...item,
         ...currentArray[index],
@@ -203,7 +210,7 @@ function App() {
   ) => {
     setSelectedCols((prev) => {
       const existingObjectArray = prev.findIndex((v: any) => v.current === opt);
-      const updatedDropdownValues = [...prev];
+      const updatedDropdownValues: any = [...prev];
       if (existingObjectArray !== -1) {
         updatedDropdownValues[existingObjectArray] = {
           current: opt,
@@ -217,17 +224,19 @@ function App() {
   };
 
   useEffect(() => {
-    const updateKeys = selectedCols.map((col) => {
+    const updateKeys = selectedCols.map((col: any) => {
       return data.map((data) => {
         return { [col?.current]: data[col?.mapped] };
       });
     });
-    if (updateKeys.length) setModifiedData(mergeArraysOfObjects(...updateKeys));
-  }, [selectedCols]);
-
-  // useEffect(() => {
-  //   if (randomModification.length) setModifiedData(randomModification);
-  // }, [click]);
+    if (updateKeys.length) {
+      setModifiedData(mergeArraysOfObjects(...updateKeys) as any);
+    }
+    if (getSpecific === "payment type" && getSpecific.length) {
+      setSeperatedData(mergeArraysOfObjects(...updateKeys) as any);
+      setGetSpecific("");
+    }
+  }, [selectedCols, getSpecific, data]);
 
   if (data.length === 0) {
     return (
@@ -239,39 +248,26 @@ function App() {
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <div>
       <div className="text-base font-normal">Exploring Tanstack table</div>
+
       <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
       <div className="p-2">
         <div className="flex flex-col gap-3 mt-4">
           {options.map((opt) => {
             return (
               <>
-                {opt === "payment type" && (
-                  <label htmlFor="check" className="flex items-center gap-3">
-                    match with payment options :
-                    <input
-                      type="checkbox"
-                      name="check"
-                      id="check"
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          handleSelectedValue(
-                            { target: { value: "Amount" } },
-                            opt
-                          );
-                        }
-                      }}
-                    />
-                  </label>
-                )}
                 <label htmlFor="">
                   {opt} :{" "}
                   <select
                     className="border text-sm"
                     name="column-mapping"
                     id="column-mapping"
-                    onChange={(e) => handleSelectedValue(e, opt)}
+                    onChange={(e) => {
+                      if (opt === "payment type")
+                        setGetSpecific("payment type");
+                      handleSelectedValue(e, opt);
+                    }}
                   >
                     <option value="select">select</option>
                     {table.getAllLeafColumns().map((column) => {
@@ -317,47 +313,54 @@ function App() {
           </tbody>
         </table>
         <div className="h-4" />
-        <EditTable randomModification={modifiedData} />
+        {seperatedData.length > 0 && (
+          <EditTable
+            randomModification={seperatedData}
+            handleUpdate={(data) => updateEditPayment(data)}
+          />
+        )}
         <FinalTable table2={table2} />
       </div>
-    </DndProvider>
+    </div>
   );
 }
 
 export default App;
 
-const EditTable = ({ randomModification }) => {
-  const [state, setState] = useState([]);
-  // const clonerandom = cloneDeep(randomModification);
-
-  // const initialArray = [{ name: "kishore" }, { name: "sai" }];
+const EditTable = ({
+  randomModification,
+  handleUpdate,
+}: {
+  randomModification: any;
+  handleUpdate: any;
+}) => {
   const [array, setArray] = useState(randomModification);
+
   useEffect(() => {
     setArray(randomModification);
   }, [randomModification]);
+
   const memoizedNames = useMemo(
-    () => array.map((item) => item["payment type"]),
+    () => array.map((item: any) => item["payment type"]),
     [array]
   );
 
-  console.log({ memoizedNames });
-
   useEffect(() => {
-    console.log("Names in array changed:", memoizedNames);
-    // Perform your desired side effects here
+    console.log("called");
+    // setArray(randomModification);
   }, [memoizedNames]);
 
   return (
     <div>
       <p className="px-1">Stone reference mapping</p>
-      <table className="border-2 my-4">
+      <table className="border-2 my-1">
         <tr>
           <th className="border-2 p-2">Payment Type</th>
           <th className="border-2 p-2">Payment Type - Stone</th>
         </tr>
-        {state.map((e, index) => {
+        {array.map((e: any, index: number) => {
           return (
-            <tr>
+            <tr key={index}>
               <td className="border-2 p-1">{e["payment type"]}</td>
               <td className="border-2 p-1">
                 <select
@@ -365,11 +368,14 @@ const EditTable = ({ randomModification }) => {
                   name="column-mapping"
                   id="column-mapping"
                   onChange={(el) => {
-                    setState((prev) => {
-                      return prev.map((e) => {
-                        return {
-                          ["payment type"]: el.target.value,
-                        };
+                    setArray((prev: any) => {
+                      return prev.map((item: any, idx: number) => {
+                        if (idx === index) {
+                          return {
+                            ["payment type"]: el.target.value,
+                          };
+                        }
+                        return item;
                       });
                     });
                   }}
@@ -384,19 +390,25 @@ const EditTable = ({ randomModification }) => {
           );
         })}
       </table>
+      <button
+        onClick={() => handleUpdate(array)}
+        className="rounded-sm shadow-sm mb-4 border py-2 px-4 bg-black text-white font-medium text-xs"
+      >
+        Update
+      </button>
     </div>
   );
 };
 
-const FinalTable = ({ table2 }) => {
+const FinalTable = ({ table2 }: { table2: any }) => {
   return (
     <div>
       <p className="px-1">Final table structure</p>
-      <table className="border-2 mt-4">
+      <table className="border-2 mt-1">
         <thead className="border-2">
-          {table2.getHeaderGroups().map((headerGroup) => (
+          {table2.getHeaderGroups().map((headerGroup: any) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
+              {headerGroup.headers.map((header: any) => (
                 <th
                   className="border-2 px-2 text-left"
                   key={header.id}
@@ -414,9 +426,9 @@ const FinalTable = ({ table2 }) => {
           ))}
         </thead>
         <tbody>
-          {table2.getRowModel().rows.map((row) => (
+          {table2.getRowModel().rows.map((row: any) => (
             <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
+              {row.getVisibleCells().map((cell: any) => (
                 <td className="border-2 px-2" key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>

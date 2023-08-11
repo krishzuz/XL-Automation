@@ -89,12 +89,12 @@ function App() {
   const [modifiedData, setModifiedData] = useState([]);
   const [selectedCols, setSelectedCols] = useState([]);
   const [getSpecific, setGetSpecific] = useState("");
+  const [updatedData, setUpdatedData] = useState<unknown[]>([]);
   const [seperatedData, setSeperatedData] = useState<any[]>([]);
-  const columnHelper = createColumnHelper<Person>();
-
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
 
+  const columnHelper = createColumnHelper<Person>();
   const getHeader = Object?.keys(data[0] || []);
 
   const handleFileUpload = (e: any) => {
@@ -159,7 +159,18 @@ function App() {
   const columns = generateDynamicColumns(getHeader);
   const columns2 = generateDynamicColumnsGrouping(selectedCols);
 
-  const updateEditPayment = (mfData: any[]) => {
+  useEffect(() => {
+    if (updatedData.length !== 0) {
+      const modifiedData2 = updatedData.map((item: any, index: number) => {
+        return merge(modifiedData[index], item);
+      });
+      setModifiedData(modifiedData2);
+    }
+  }, [updatedData]);
+
+  const updateEditPayment = (mfData: unknown[]) => {
+    if (mfData.length === 0) return;
+    setUpdatedData(mfData);
     const modifiedData2 = mfData.map((item: any, index: number) => {
       return merge(modifiedData[index], item);
     });
@@ -235,51 +246,47 @@ function App() {
     if (getSpecific === "payment type" && getSpecific.length) {
       setSeperatedData(mergeArraysOfObjects(...updateKeys) as any);
       setGetSpecific("");
+      setUpdatedData([]);
     }
   }, [selectedCols, getSpecific, data]);
 
   if (data.length === 0) {
     return (
-      <>
-        <div>Exploring Tanstack table</div>
+      <div className="max-w-4xl mx-auto py-10">
+        <div>XL to Table</div>
         <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
-      </>
+      </div>
     );
   }
 
   return (
-    <div>
-      <div className="text-base font-normal">Exploring Tanstack table</div>
-
-      <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
+    <div className="max-w-4xl mx-auto py-10">
+      <p className="text-lg font-semibold">Mapping controls</p>
       <div className="p-2">
-        <div className="flex flex-col gap-3 mt-4">
-          {options.map((opt) => {
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          {options.map((opt, index) => {
             return (
-              <>
-                <label htmlFor="">
-                  {opt} :{" "}
-                  <select
-                    className="border text-sm"
-                    name="column-mapping"
-                    id="column-mapping"
-                    onChange={(e) => {
-                      if (opt === "payment type")
-                        setGetSpecific("payment type");
-                      handleSelectedValue(e, opt);
-                    }}
-                  >
-                    <option value="select">select</option>
-                    {table.getAllLeafColumns().map((column) => {
-                      return <option value={column.id}>{column.id}</option>;
-                    })}
-                  </select>
-                </label>
-              </>
+              <div key={index}>
+                <p className="mb-2 capitalize font-medium text-base">{opt}</p>
+                <select
+                  className="border text-sm"
+                  name="column-mapping"
+                  id="column-mapping"
+                  onChange={(e) => {
+                    if (opt === "payment type") setGetSpecific("payment type");
+                    handleSelectedValue(e, opt);
+                  }}
+                >
+                  <option value="select">select</option>
+                  {table.getAllLeafColumns().map((column) => {
+                    return <option value={column.id}>{column.id}</option>;
+                  })}
+                </select>
+              </div>
             );
           })}
         </div>
-        <table className="border-2 mt-4">
+        <table className="border-2 mt-10">
           <thead className="border-2">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -316,7 +323,7 @@ function App() {
         {seperatedData.length > 0 && (
           <EditTable
             randomModification={seperatedData}
-            handleUpdate={(data) => updateEditPayment(data)}
+            handleUpdate={(data: any) => updateEditPayment(data)}
           />
         )}
         <FinalTable table2={table2} />

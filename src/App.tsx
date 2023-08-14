@@ -93,7 +93,6 @@ function App() {
   const [seperatedData, setSeperatedData] = useState<any[]>([]);
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
-  const [isTransaction, setIsTransaction] = useState<string>("");
 
   const columnHelper = createColumnHelper<Person>();
   const getHeader = Object?.keys(data[0] || []);
@@ -291,7 +290,6 @@ function App() {
                   id="column-mapping"
                   onChange={(e) => {
                     if (opt === "payment type") setGetSpecific("payment type");
-                    if (opt === "transaction") setIsTransaction("transaction");
                     handleSelectedValue(e, opt);
                   }}
                 >

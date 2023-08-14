@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { first, groupBy, merge } from "lodash";
 import {
   ColumnOrderState,
@@ -9,7 +9,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import * as XLSX from "xlsx";
-import { MyListbox } from "./Components/List/List";
 
 type Person = {
   firstName: string;
@@ -82,6 +81,7 @@ const options = [
   "payment type",
   "debit",
   "credit",
+  "transaction",
 ];
 
 function App() {
@@ -93,6 +93,7 @@ function App() {
   const [seperatedData, setSeperatedData] = useState<any[]>([]);
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
+  const [isTransaction, setIsTransaction] = useState<string>("");
 
   const columnHelper = createColumnHelper<Person>();
   const getHeader = Object?.keys(data[0] || []);
@@ -159,15 +160,6 @@ function App() {
   const columns = generateDynamicColumns(getHeader);
   const columns2 = generateDynamicColumnsGrouping(selectedCols);
 
-  useEffect(() => {
-    if (updatedData.length !== 0) {
-      const modifiedData2 = updatedData.map((item: any, index: number) => {
-        return merge(modifiedData[index], item);
-      });
-      setModifiedData(modifiedData2);
-    }
-  }, [updatedData]);
-
   const updateEditPayment = (mfData: unknown[]) => {
     if (mfData.length === 0) return;
     setUpdatedData(mfData);
@@ -202,10 +194,10 @@ function App() {
   });
 
   function mergeArraysOfObjects(...arrays: (string | any[])[]) {
-    const checkLength = arrays[0].length;
-    if (!arrays.every((arr) => arr.length === checkLength)) {
-      throw new Error("Arrays must have the same length.");
-    }
+    // const checkLength = arrays[0].length;
+    // if (!arrays.every((arr) => arr.length === checkLength)) {
+    //   throw new Error("Arrays must have the same length.");
+    // }
 
     return arrays.reduce((mergedArray: any, currentArray: any) => {
       return mergedArray.map((item: any, index: string | number) => ({
@@ -240,15 +232,39 @@ function App() {
         return { [col?.current]: data[col?.mapped] };
       });
     });
-    if (updateKeys.length) {
-      setModifiedData(mergeArraysOfObjects(...updateKeys) as any);
+    if (selectedCols.some((col: any) => col.current === "transaction")) {
+      const splittingNegatives: any = modifiedData.map((item: any) => {
+        return {
+          ...item,
+          credit: Math.sign(item.transaction) === 1 ? item.transaction : 0,
+          debit: Math.sign(item.transaction) === -1 ? item.transaction : 0,
+        };
+      });
+      setModifiedData(
+        mergeArraysOfObjects(
+          ...updateKeys,
+          updatedData,
+          splittingNegatives
+        ) as any
+      );
+    } else if (updateKeys.length) {
+      setModifiedData(mergeArraysOfObjects(...updateKeys, updatedData) as any);
     }
     if (getSpecific === "payment type" && getSpecific.length) {
       setSeperatedData(mergeArraysOfObjects(...updateKeys) as any);
       setGetSpecific("");
       setUpdatedData([]);
     }
-  }, [selectedCols, getSpecific, data]);
+  }, [selectedCols, getSpecific, data, updatedData]);
+
+  useEffect(() => {
+    if (updatedData.length !== 0) {
+      const modifiedData2 = updatedData.map((item: any, index: number) => {
+        return merge(modifiedData[index], item);
+      });
+      setModifiedData(modifiedData2);
+    }
+  }, [updatedData]);
 
   if (data.length === 0) {
     return (
@@ -258,6 +274,7 @@ function App() {
       </div>
     );
   }
+  console.log(modifiedData);
 
   return (
     <div className="max-w-4xl mx-auto py-10">
@@ -274,6 +291,7 @@ function App() {
                   id="column-mapping"
                   onChange={(e) => {
                     if (opt === "payment type") setGetSpecific("payment type");
+                    if (opt === "transaction") setIsTransaction("transaction");
                     handleSelectedValue(e, opt);
                   }}
                 >
@@ -346,16 +364,6 @@ const EditTable = ({
   useEffect(() => {
     setArray(randomModification);
   }, [randomModification]);
-
-  const memoizedNames = useMemo(
-    () => array.map((item: any) => item["payment type"]),
-    [array]
-  );
-
-  useEffect(() => {
-    console.log("called");
-    // setArray(randomModification);
-  }, [memoizedNames]);
 
   return (
     <div>

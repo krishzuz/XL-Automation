@@ -273,7 +273,6 @@ function App() {
       </div>
     );
   }
-  console.log(modifiedData);
 
   return (
     <div className="max-w-4xl mx-auto py-10">
